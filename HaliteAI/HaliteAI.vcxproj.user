@@ -14,7 +14,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerCommand>"$(SolutionDir)\..\halite.exe"</LocalDebuggerCommand>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
-    <LocalDebuggerCommandArguments>--replay-directory replays/ -vvv --width 64 --height 64 "./HalieAI/Debug/HalieAI.exe" "MyBot.exe" "MyBot.exe" "MyBot.exe"</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>--replay-directory replays/ -vvv --width 64 --height 64 "HaliteAI.exe" "MyBot.exe" "MyBot.exe" "MyBot.exe"</LocalDebuggerCommandArguments>
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)\..</LocalDebuggerWorkingDirectory>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LocalDebuggerCommand>"$(SolutionDir)\..\halite.exe"</LocalDebuggerCommand>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArguments>--replay-directory replays/ -vvv --width 64 --height 64 "HaliteAIDbg.exe" "MyBot.exe" "MyBot.exe" "MyBot.exe"</LocalDebuggerCommandArguments>
     <LocalDebuggerWorkingDirectory>$(SolutionDir)\..</LocalDebuggerWorkingDirectory>
   </PropertyGroup>
 </Project>
