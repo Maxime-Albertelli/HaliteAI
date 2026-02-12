@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
         /*Gestion des vaisseaux*/
         for (const auto& ship_iterator : me->ships) { //Pour chaque vaisseau de notre bot
             shared_ptr<Ship> ship = ship_iterator.second;
-            if (game_map->at(ship)->halite < constants::MAX_HALITE / 10 || ship->is_full()) { //Si le vaisseau est plein ou qu'il a fini de remplir 1/10 de sa capacité
+            if (game_map->at(ship)->halite < constants::MAX_HALITE / 10 || ship->is_full()) { //Si le vaisseau est plein ou que la quantité d'halite est basse à son emplacement (<max_halite/10)
                 Direction random_direction = ALL_CARDINALS[rng() % 4]; //Choix d'une direction aléatoire
                 command_queue.push_back(ship->move(random_direction)); //Le vaisseau se dirige dans une direction aléatoire
             } else {
