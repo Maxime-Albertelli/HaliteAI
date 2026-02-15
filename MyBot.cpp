@@ -4,6 +4,8 @@
 
 #include <random>
 #include <ctime>
+#include <set>
+#include <map>
 
 using namespace std;
 using namespace hlt;
@@ -14,64 +16,127 @@ using namespace hlt;
 # define LOG(X)
 #endif // DEBUG
 
+enum class ShipState {
+    HARVESTING,
+    RETURNING
+};
+
 int main(int argc, char* argv[]) {
     unsigned int rng_seed;
-    if (argc > 1) {
-        rng_seed = static_cast<unsigned int>(stoul(argv[1]));
-    } else {
-        rng_seed = static_cast<unsigned int>(time(nullptr));
-    }
+    if (argc > 1) rng_seed = static_cast<unsigned int>(stoul(argv[1]));
+    else rng_seed = static_cast<unsigned int>(time(nullptr));
     mt19937 rng(rng_seed);
 
-    Game game; //initialisation d'une partie (une partie comporte un joueur (nous) avec son ID, une liste d'autre joueurs, une map, le tour actuel)
-    
-    // At this point "game" variable is populated with initial map data.
-    // This is a good place to do computationally expensive start-up pre-processing.
-    // As soon as you call "ready" function below, the 2 second per turn timer will start.
-    game.ready("Mon pote"); 
+    Game game;
+    game.ready("Mon pote amélioré");
+
+    map<EntityId, ShipState> ship_states; //état des vaisseaux (RECOLTE, RETOUR VAISSEAU MERE)
 
     for (;;) {
         game.update_frame();
-        shared_ptr<Player> me = game.me; 
+        shared_ptr<Player> me = game.me;
         unique_ptr<GameMap>& game_map = game.game_map;
-
         vector<Command> command_queue;
 
-        /*Gestion des vaisseaux*/
-        for (const auto& ship_iterator : me->ships) { //Pour chaque vaisseau de notre bot
+        // "Carte" des positions où nos vaisseaux vont aller ce tour-ci pour éviter les collisions
+        // On remplit ça à chaque décision de mouvement
+        set<Position> intended_positions;
+
+        /* --Gestion des petits vaisseaux-- */
+        for (const auto& ship_iterator : me->ships) {
+
             shared_ptr<Ship> ship = ship_iterator.second;
-            if (game_map->at(ship)->halite < constants::MAX_HALITE / 10 || ship->is_full()) { //Si le vaisseau est plein ou qu'il a fini de remplir 1/10 de sa capacité
-                Direction random_direction = ALL_CARDINALS[rng() % 4]; //Choix d'une direction aléatoire
-                command_queue.push_back(ship->move(random_direction)); //Le vaisseau se dirige dans une direction aléatoire
-            } else {
-                command_queue.push_back(ship->stay_still()); //Reste sur place
+            EntityId id = ship->id;
+
+            //Initialisation de l'état des nouveaux vaisseaux
+            if (ship_states.find(id) == ship_states.end()) {
+                ship_states[id] = ShipState::HARVESTING;
             }
+
+            //Si vaisseau plein => état retour vaisseau mère
+            if (ship->halite >= constants::MAX_HALITE * 0.95) {
+                ship_states[id] = ShipState::RETURNING;
+            }
+            // Si vaisseau vide => état récolte
+            else if (ship->halite == 0) {
+                ship_states[id] = ShipState::HARVESTING;
+            }
+
+            // Retour au vaisseau mère en panique avant fin de la partie
+            int turns_to_home = game_map->calculate_distance(ship->position, me->shipyard->position);
+            if (game.turn_number > constants::MAX_TURNS - (turns_to_home + 10)) {
+                ship_states[id] = ShipState::RETURNING;
+            }
+
+            
+            Command command = ship->stay_still();
+            bool move_decided = false;
+
+            //Comportement de l'état retour
+            if (ship_states[id] == ShipState::RETURNING) {
+                if (ship->position == me->shipyard->position) {
+                    move_decided = true; //Dépose ressource quand sur vaisseau mère
+                }
+                else {
+                    Direction dir = game_map->naive_navigate(ship, me->shipyard->position); //retour vaisseau mère tout droit (! Sensible au collision)
+                    command = ship->move(dir);
+                    move_decided = true;
+                }
+            }
+            else { //Comportement de l'état récolte 
+                // Si la case actuelle contient encore beaucoup de ressources (100 ici),
+                // on reste dessus
+                if (game_map->at(ship)->halite > 100 && !ship->is_full()) {
+                    command = ship->stay_still();
+                    move_decided = true;
+                }
+                else {
+                    // Recherche de la case proche la plus intéressante
+                    int max_score = -1;
+                    Direction best_dir = Direction::STILL;
+
+                    for (const auto& dir : ALL_CARDINALS) {
+                        Position target_pos = ship->position.directional_offset(dir);
+
+                        // Verification de si la case est déjà prévue par un autre vaisseau => éviter les collisions
+                        if (intended_positions.count(target_pos)) continue;
+
+                        int cell_halite = game_map->at(target_pos)->halite;
+
+                        // Définition des scores d'intéret pour les cases adjacentes
+                        if (cell_halite > max_score) {
+                            max_score = cell_halite;
+                            best_dir = dir;
+                        }
+                    }
+
+                    // Si on a trouvé une direction intéressante (et différente de rester sur place si c'est vide)
+                    if (best_dir != Direction::STILL) {
+                        command = ship->move(best_dir);
+                        move_decided = true;
+                    }
+                }
+            }
+
+            // Enregistrement de la prochaine position pour éviter les collision avec les autres vaisseaux
+            // (! sensible au collision => point d'amélioration)
+            Position future_pos = ship->position;
+
+            command_queue.push_back(command);
         }
 
-        /*Gestion du vaisseau mère*/
-        if (
-            game.turn_number <= 200 &&
+        /* --Gestion du vaisseau mère-- */
+        if (game.turn_number <= 250 &&
             me->halite >= constants::SHIP_COST &&
-            !game_map->at(me->shipyard)->is_occupied()) //Si on est à moins de 200 tours, qu'on a assez de ressource pour faire apparaitre et que la case du vaisseau est libre => faire apparaitre
+            !game_map->at(me->shipyard)->is_occupied())
         {
             command_queue.push_back(me->shipyard->spawn());
         }
 
-        if (!game.end_turn(command_queue)) {
-            break;
-        }
+        if (!game.end_turn(command_queue)) break;
     }
-
     return 0;
 }
-
-/*
-Détails de la stratégie actuelle :
-    Le vaisseau mère fait apparaitre des petits vaisseau dès qu'il a assez de ressource (si case libre et avant 200 tours).
-    Les petits vaisseaux se déplacent ensuite aléatoirement, récupèrent un dixième de leur capacité, puis se redéplacent,
-    si ils sont plein ils se déplacent à chaque tours.
-    Si par chance ils retombent sur le vaisseau mère, ils peuvent se vider et reprendre leur errance. 
-*/
 
 /* 
 Inventaire des fonctions pratiques pour donner des directives au bot :
@@ -79,6 +144,7 @@ Inventaire des fonctions pratiques pour donner des directives au bot :
     spawn() : fait apparaitre un petit vaisseau sur la case du vaisseau mère
     stay_still() : petit vaisseau reste sur place pour cette frame
     move() : déplace le vaisseau dans une direction donnée (cardinale)
+    naive_navigate() : déplacement simple vers une cible
 
     Getter :
         is_full() : petit vaisseau plein
