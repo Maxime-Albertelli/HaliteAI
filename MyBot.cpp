@@ -34,15 +34,15 @@ int main(int argc, char* argv[]) {
 
     for (;;) {
         game.update_frame();
+        vector<Command> command_queue;
         shared_ptr<Player> me = game.me;
         unique_ptr<GameMap>& game_map = game.game_map;
-        vector<Command> command_queue;
 
         // "Carte" des positions où nos vaisseaux vont aller ce tour-ci pour éviter les collisions
         // On remplit ça à chaque décision de mouvement
         set<Position> intended_positions;
 
-        /* --Gestion des petits vaisseaux-- */
+        //* --Gestion des petits vaisseaux-- *
         for (const auto& ship_iterator : me->ships) {
 
             shared_ptr<Ship> ship = ship_iterator.second;
@@ -125,7 +125,7 @@ int main(int argc, char* argv[]) {
             command_queue.push_back(command);
         }
 
-        /* --Gestion du vaisseau mère-- */
+        //* --Gestion du vaisseau mère-- *
         if (game.turn_number <= 250 &&
             me->halite >= constants::SHIP_COST &&
             !game_map->at(me->shipyard)->is_occupied())

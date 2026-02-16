@@ -72,6 +72,8 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
+    <OutDir>$(SolutionDir)\..\</OutDir>
+    <TargetName>$(ProjectName)Dbg</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -80,7 +82,7 @@
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)\..\</OutDir>
     <IntDir>$(ShortProjectName)\$(Configuration)\</IntDir>
-    <TargetName>$(ProjectName)Dbg</TargetName>
+    <TargetName>$(ProjectName)Dbg64</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
