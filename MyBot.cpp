@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
     mt19937 rng(rng_seed);
 
     Game game;
-    game.ready("Mon pote amélioré");
+    game.ready("Mon pote amlior");
 
     map<EntityId, ShipState> ship_states; //état des vaisseaux (RECOLTE, RETOUR VAISSEAU MERE)
 
