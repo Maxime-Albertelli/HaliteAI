@@ -158,6 +158,7 @@ int main(int argc, char* argv[]) {
         //    command_queue.push_back(me->shipyard->spawn());
         //}
 
+        //* --Gestion du vaisseau mère-- *
         // On vérifie si un vaisseau a prévu de venir sur le vaisseau mère à ce tour
         bool is_shipyard_safe = (intended_positions.count(me->shipyard->position) == 0);
 
