@@ -21,6 +21,31 @@ enum class ShipState {
     RETURNING
 };
 
+
+// Définir une fonction de navigation qui prend en compte les positions prévues des vaisseaux au prochain tour
+Direction safe_navigate(shared_ptr<Ship> ship, Position destination, const unique_ptr<GameMap>& game_map, const set<Position>& intended_positions) {
+    // Obtenir 1 ou 2 directions optimales
+    vector<Direction> options = game_map->get_unsafe_moves(ship->position, destination);
+
+    // Tester ces options
+    for (Direction dir : options) {
+        Position target_pos = ship->position.directional_offset(dir);
+
+        // Si aucun vaisseau n'a réservé cette case pour le tour prochain
+        if (intended_positions.count(target_pos) == 0) {
+
+            // On vérifie qu'un vaisseau ennemi ne s'y trouve pas actuellement.
+            // Contrairement à nos propres vaisseaux, on ne sait pas si un vaisseau ennemi va bouger ou pas au prochain tour
+            if (!game_map->at(target_pos)->is_occupied() ||
+                game_map->at(target_pos)->ship->owner == ship->owner) {
+                return dir;
+            }
+        }
+    }
+    // Si les chemins idéaux sont bloqués, on reste sur place par sécurité
+    return Direction::STILL;
+}
+
 int main(int argc, char* argv[]) {
     unsigned int rng_seed;
     if (argc > 1) rng_seed = static_cast<unsigned int>(stoul(argv[1]));
@@ -80,7 +105,7 @@ int main(int argc, char* argv[]) {
                     command_queue.push_back(ship->stay_still());
                 }
                 else {
-                    Direction dir = game_map->naive_navigate(ship, me->shipyard->position);
+                    Direction dir = safe_navigate(ship, me->shipyard->position, game_map, intended_positions);
                     // On calcule la future position en fonction de la direction
                     Position future_pos = ship->position.directional_offset(dir);
 
