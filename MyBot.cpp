@@ -46,6 +46,15 @@ Direction safe_navigate(shared_ptr<Ship> ship, Position destination, const uniqu
     return Direction::STILL;
 }
 
+//Définir une fonction d'inversion qui permet à des vaisseaux d'échanger leurs places
+Direction invert_direction(Direction dir) {
+    if (dir == Direction::NORTH) return Direction::SOUTH;
+    if (dir == Direction::SOUTH) return Direction::NORTH;
+    if (dir == Direction::EAST) return Direction::WEST;
+    if (dir == Direction::WEST) return Direction::EAST;
+    return Direction::STILL;
+}
+
 int main(int argc, char* argv[]) {
     unsigned int rng_seed;
     if (argc > 1) rng_seed = static_cast<unsigned int>(stoul(argv[1]));
@@ -68,7 +77,6 @@ int main(int argc, char* argv[]) {
         set<Position> intended_positions;
 
         //* --Gestion des petits vaisseaux-- *
-
         // * --Mise à jour des états de la flotte-- *
         for (const auto& ship_iterator : me->ships) {
 
