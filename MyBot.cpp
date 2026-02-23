@@ -121,7 +121,6 @@ int main(int argc, char* argv[]) {
 
             //Comportement de l'état retour
             if (ship_states[id] == ShipState::RETURNING) {
-                //Position target_base = get_closest_dropoff(ship, me, game_map);
                 //Lecture de la base la plus proche dans le cache
                 Position target_base = closest_base_cache[id];
 
@@ -194,7 +193,6 @@ int main(int argc, char* argv[]) {
             if (ship_states[id] == ShipState::HARVESTING) {
 
                 // Décider si on crée un dropoff
-                //Position closest_base = get_closest_dropoff(ship, me, game_map);
                 //Lecture de la base la plus proche dans le cache
                 Position closest_base = closest_base_cache[id];
                 int dist_to_base = game_map->calculate_distance(ship->position, closest_base);
