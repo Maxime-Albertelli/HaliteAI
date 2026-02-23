@@ -136,7 +136,7 @@ int main(int argc, char* argv[]) {
                     bool moved = false;
 
                     for (Direction dir : options) {
-                        Position target_pos = ship->position.directional_offset(dir);
+                        Position target_pos = game_map->normalize(ship->position.directional_offset(dir));
 
                         // Si la case est déjà réservée par un autre vaisseau rentrant => on passe
                         if (intended_grid[target_pos.x][target_pos.y]) continue;
@@ -223,7 +223,7 @@ int main(int argc, char* argv[]) {
                     Position future_pos = ship->position; // Sécurité : cible sa propre position par défaut
 
                     for (const auto& dir : ALL_CARDINALS) {
-                        Position target_pos = ship->position.directional_offset(dir);
+                        Position target_pos = game_map->normalize(ship->position.directional_offset(dir));
 
                         // Verification de si la case est déjà prévue par un autre vaisseau => éviter les collisions
                         if (intended_grid[target_pos.x][target_pos.y]) continue;
