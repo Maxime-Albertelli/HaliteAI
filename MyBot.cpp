@@ -21,40 +21,6 @@ enum class ShipState {
     RETURNING
 };
 
-
-// Définir une fonction de navigation qui prend en compte les positions prévues des vaisseaux au prochain tour
-Direction safe_navigate(shared_ptr<Ship> ship, Position destination, const unique_ptr<GameMap>& game_map, const set<Position>& intended_positions) {
-    // Obtenir 1 ou 2 directions optimales
-    vector<Direction> options = game_map->get_unsafe_moves(ship->position, destination);
-
-    // Tester ces options
-    for (Direction dir : options) {
-        Position target_pos = ship->position.directional_offset(dir);
-
-        // Si aucun vaisseau n'a réservé cette case pour le tour prochain
-        if (intended_positions.count(target_pos) == 0) {
-
-            // On vérifie qu'un vaisseau ennemi ne s'y trouve pas actuellement.
-            // Contrairement à nos propres vaisseaux, on ne sait pas si un vaisseau ennemi va bouger ou pas au prochain tour
-            if (!game_map->at(target_pos)->is_occupied() ||
-                game_map->at(target_pos)->ship->owner == ship->owner) {
-                return dir;
-            }
-        }
-    }
-    // Si les chemins idéaux sont bloqués, on reste sur place par sécurité
-    return Direction::STILL;
-}
-
-//Définir une fonction d'inversion qui permet à des vaisseaux d'échanger leurs places
-Direction invert_direction(Direction dir) {
-    if (dir == Direction::NORTH) return Direction::SOUTH;
-    if (dir == Direction::SOUTH) return Direction::NORTH;
-    if (dir == Direction::EAST) return Direction::WEST;
-    if (dir == Direction::WEST) return Direction::EAST;
-    return Direction::STILL;
-}
-
 int main(int argc, char* argv[]) {
     unsigned int rng_seed;
     if (argc > 1) rng_seed = static_cast<unsigned int>(stoul(argv[1]));
@@ -76,8 +42,11 @@ int main(int argc, char* argv[]) {
         // On remplit ça à chaque décision de mouvement
         set<Position> intended_positions;
 
+        map<EntityId, Command> ship_commands; // Stocke les ordres avant validation
+        set<EntityId> processed_ships;        // Retient les vaisseaux qui ont déjà une commande
+
         //* --Gestion des petits vaisseaux-- *
-        // * --Mise à jour des états de la flotte-- *
+        // * --Mise à jour des états de la flotte et règle des 10%-- *
         for (const auto& ship_iterator : me->ships) {
 
             shared_ptr<Ship> ship = ship_iterator.second;
@@ -98,27 +67,81 @@ int main(int argc, char* argv[]) {
             if (game.turn_number > constants::MAX_TURNS - (turns_to_home + 10)) {
                 ship_states[id] = ShipState::RETURNING;
             }
+
+            // Un vaisseau ne peut bouger que s'il a au moins 10% du halite de sa case actuelle
+            int move_cost = game_map->at(ship->position)->halite / 10;
+            if (ship->halite < move_cost) {
+                ship_commands[id] = ship->stay_still();
+                processed_ships.insert(id);
+                intended_positions.insert(ship->position); // vaisseau reste immobile => réserver la case
+            }
         }
 
-        // * --Déterminer le comportement des vaisseaux qui rentrent en priorité-- *
+        // * --Comportement des vaisseaux qui rentrent en priorité et swapping-- *
         for (const auto& ship_iterator : me->ships) {
             shared_ptr<Ship> ship = ship_iterator.second;
             EntityId id = ship->id;
+
+            // Si le vaisseau est bloqué par la règle des 10% ou a déjà swappé => passer au suivant
+            if (processed_ships.count(id)) continue;
 
             //Comportement de l'état retour
             if (ship_states[id] == ShipState::RETURNING) {
                 if (ship->position == me->shipyard->position) {
                     // Reste sur place pour déposer
                     intended_positions.insert(ship->position);
-                    command_queue.push_back(ship->stay_still());
+                    //command_queue.push_back(ship->stay_still());
+                    ship_commands[id] = ship->stay_still();
+                    processed_ships.insert(id);
                 }
                 else {
-                    Direction dir = safe_navigate(ship, me->shipyard->position, game_map, intended_positions);
-                    // On calcule la future position en fonction de la direction
-                    Position future_pos = ship->position.directional_offset(dir);
+                    // On récupère les directions brutes pour pouvoir vérifier le contenu de la case cible
+                    vector<Direction> options = game_map->get_unsafe_moves(ship->position, me->shipyard->position);
+                    bool moved = false;
 
-                    intended_positions.insert(future_pos); // On réserve la case
-                    command_queue.push_back(ship->move(dir));
+                    for (Direction dir : options) {
+                        Position target_pos = ship->position.directional_offset(dir);
+
+                        // Si la case n'est pas déjà réservée par un autre vaisseau rentrant
+                        if (intended_positions.count(target_pos) == 0) {
+
+                            // Swapping : y a-t-il un de nos vaisseaux sur cette case ?
+                            if (game_map->at(target_pos)->is_occupied() &&
+                                game_map->at(target_pos)->ship->owner == me->id) {
+
+                                shared_ptr<Ship> ally = game_map->at(target_pos)->ship;
+
+                                // Si l'allié n'est pas bloqué par la règle des 10% et n'a pas encore d'ordre
+                                if (processed_ships.count(ally->id) == 0) {
+                                    ship_commands[id] = ship->move(dir);
+                                    ship_commands[ally->id] = ally->move(invert_direction(dir)); // L'allié recule
+
+                                    processed_ships.insert(id);
+                                    processed_ships.insert(ally->id);
+
+                                    intended_positions.insert(target_pos);
+                                    intended_positions.insert(ship->position); // L'allié prend notre ancienne case
+                                    moved = true;
+                                    break;
+                                }
+                            }
+                            // Case libre
+                            else if (!game_map->at(target_pos)->is_occupied()) {
+                                ship_commands[id] = ship->move(dir);
+                                processed_ships.insert(id);
+                                intended_positions.insert(target_pos);
+                                moved = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Si on est complètement coincé, on reste sur place
+                    if (!moved) {
+                        ship_commands[id] = ship->stay_still();
+                        processed_ships.insert(id);
+                        intended_positions.insert(ship->position);
+                    }
                 }
             }
         }
@@ -128,25 +151,32 @@ int main(int argc, char* argv[]) {
             shared_ptr<Ship> ship = ship_iterator.second;
             EntityId id = ship->id;
 
+            // Si le vaisseau est bloqué par la règle des 10% ou a déjà swappé => passer au suivant
+            if (processed_ships.count(id)) continue;
+
             //Comportement de l'état récolte 
             if (ship_states[id] == ShipState::HARVESTING) {
                 // Si la case actuelle contient encore beaucoup de ressources (100 ici),
                 // on reste dessus
                 if (game_map->at(ship)->halite > 100 && !ship->is_full()) {
                     intended_positions.insert(ship->position);
-                    command_queue.push_back(ship->stay_still());
+                    ship_commands[id] = ship->stay_still();
+                    processed_ships.insert(id);
                 }
                 else {
                     // Recherche de la case proche la plus intéressante
                     int max_score = -1;
                     Direction best_dir = Direction::STILL;
-                    Position future_pos = ship->position.directional_offset(best_dir);
+                    Position future_pos = ship->position; // Sécurité : cible sa propre position par défaut
 
                     for (const auto& dir : ALL_CARDINALS) {
                         Position target_pos = ship->position.directional_offset(dir);
 
                         // Verification de si la case est déjà prévue par un autre vaisseau => éviter les collisions
                         if (intended_positions.count(target_pos)) continue;
+
+                        // Eviter les vaisseaux ennemis
+                        if (game_map->at(target_pos)->is_occupied() && game_map->at(target_pos)->ship->owner != me->id) continue;
 
                         int cell_halite = game_map->at(target_pos)->halite;
 
@@ -158,13 +188,16 @@ int main(int argc, char* argv[]) {
                         }
                     }
 
-                    // Si on a trouvé une direction intéressante (et différente de rester sur place si c'est vide)
-                    if (best_dir != Direction::STILL) {
-                        intended_positions.insert(future_pos); // On réserve la case
-                        command_queue.push_back(ship->move(best_dir));
-                    }
+                    intended_positions.insert(future_pos); // On réserve la case
+                    ship_commands[id] = ship->move(best_dir);
+                    processed_ships.insert(id);
                 }
             }
+        }
+
+        // Transférer les commandes dans la command_queue
+        for (const auto& pair : ship_commands) {
+            command_queue.push_back(pair.second);
         }
 
         //* --Gestion du vaisseau mère-- *
