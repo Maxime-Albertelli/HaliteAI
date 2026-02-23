@@ -66,6 +66,11 @@ int main(int argc, char* argv[]) {
         map<EntityId, Command> ship_commands; // Stocke les ordres avant validation
         set<EntityId> processed_ships;        // Retient les vaisseaux qui ont déjà une commande
 
+        // On autorise la création d'un seul dropoff par tour si on est riche
+        // On limite aussi le nombre total de dropoffs pour ne pas tapisser la carte
+        int max_dropoffs = 3; // à ajuster selon la taille de la carte
+        bool can_build_dropoff = (me->halite >= 5000) && (me->dropoffs.size() < max_dropoffs);
+
         //* --Gestion des petits vaisseaux-- *
         // * --Mise à jour des états de la flotte et règle des 10%-- *
         for (const auto& ship_iterator : me->ships) {
@@ -190,6 +195,23 @@ int main(int argc, char* argv[]) {
 
             //Comportement de l'état récolte 
             if (ship_states[id] == ShipState::HARVESTING) {
+
+                // Décider si on crée un dropoff
+                Position closest_base = get_closest_dropoff(ship, me, game_map);
+                int dist_to_base = game_map->calculate_distance(ship->position, closest_base);
+
+                // Si on a l'autorisation, qu'on est à plus de 15 cases d'une base, 
+                // et que la case sur laquelle on se trouve est un peu riche
+                if (can_build_dropoff && dist_to_base > 15 && game_map->at(ship->position)->halite > 500) {
+
+                    ship_commands[id] = ship->make_dropoff();
+                    processed_ships.insert(id);
+                    intended_positions.insert(ship->position); // Le dropoff devient un obstacle permanent !
+
+                    can_build_dropoff = false; // On retire l'autorisation pour les autres vaisseaux ce tour-ci
+                    continue; // On passe au vaisseau suivant
+                }
+
                 // Si la case actuelle contient encore beaucoup de ressources (100 ici),
                 // on reste dessus
                 if (game_map->at(ship)->halite > 100 && !ship->is_full()) {
