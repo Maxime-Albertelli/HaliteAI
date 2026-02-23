@@ -21,6 +21,27 @@ enum class ShipState {
     RETURNING
 };
 
+// Fonction pour trouver la base (Shipyard ou Dropoff) la plus proche d'un vaisseau
+Position get_closest_dropoff(shared_ptr<Ship> ship, shared_ptr<Player> me, const unique_ptr<GameMap>& game_map) {
+    // On initialise avec la distance vers le vaisseau mère
+    Position closest_base = me->shipyard->position;
+    int min_distance = game_map->calculate_distance(ship->position, closest_base);
+
+    // On vérifie la distance vers tous les Dropoffs existants
+    for (const auto& dropoff_pair : me->dropoffs) {
+        shared_ptr<Dropoff> dropoff = dropoff_pair.second;
+        int dist = game_map->calculate_distance(ship->position, dropoff->position);
+
+        // Si ce Dropoff est plus proche, il devient notre nouvelle cible
+        if (dist < min_distance) {
+            min_distance = dist;
+            closest_base = dropoff->position;
+        }
+    }
+
+    return closest_base;
+}
+
 int main(int argc, char* argv[]) {
     unsigned int rng_seed;
     if (argc > 1) rng_seed = static_cast<unsigned int>(stoul(argv[1]));
