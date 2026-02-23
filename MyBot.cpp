@@ -88,9 +88,6 @@ int main(int argc, char* argv[]) {
                 ship_states[id] = ShipState::RETURNING;
             }
 
-            //// Retour au vaisseau mère avant fin de la partie
-            //int turns_to_home = game_map->calculate_distance(ship->position, me->shipyard->position);
-
             // Retour à la base la plus proche avant fin de la partie
             Position closest_base = get_closest_dropoff(ship, me, game_map);
             int turns_to_home = game_map->calculate_distance(ship->position, closest_base);
@@ -119,12 +116,6 @@ int main(int argc, char* argv[]) {
             if (ship_states[id] == ShipState::RETURNING) {
                 Position target_base = get_closest_dropoff(ship, me, game_map);
 
-                //if (ship->position == me->shipyard->position) {
-                //    // Reste sur place pour déposer
-                //    intended_positions.insert(ship->position);
-                //    ship_commands[id] = ship->stay_still();
-                //    processed_ships.insert(id);
-                //}
                 if (ship->position == target_base) { // On vérifie si on est sur la base cible
                     // Reste sur place pour déposer
                     intended_positions.insert(ship->position);
@@ -132,9 +123,6 @@ int main(int argc, char* argv[]) {
                     processed_ships.insert(id);
                 }
                 else {
-                    // On récupère les directions brutes pour pouvoir vérifier le contenu de la case cible
-                    // vector<Direction> options = game_map->get_unsafe_moves(ship->position, me->shipyard->position);
-                    
                     // On navigue vers la base cible
                     vector<Direction> options = game_map->get_unsafe_moves(ship->position, target_base);
                     bool moved = false;
