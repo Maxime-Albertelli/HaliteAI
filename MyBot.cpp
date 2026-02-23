@@ -69,6 +69,9 @@ int main(int argc, char* argv[]) {
         unordered_map<EntityId, Command> ship_commands; // Stocke les ordres avant validation
         unordered_set<EntityId> processed_ships;        // Retient les vaisseaux qui ont déjà une commande
 
+        // Créer un cache pour mémoriser la base la plus proche de chaque vaisseau
+        unordered_map<EntityId, Position> closest_base_cache;
+
         // On autorise la création d'un seul dropoff par tour si on est riche
         // On limite aussi le nombre total de dropoffs pour ne pas tapisser la carte
         int max_dropoffs = 3; // à ajuster selon la taille de la carte
@@ -93,6 +96,7 @@ int main(int argc, char* argv[]) {
 
             // Retour à la base la plus proche avant fin de la partie
             Position closest_base = get_closest_dropoff(ship, me, game_map);
+            closest_base_cache[id] = closest_base; // Mise en cache de la base la plus proche
             int turns_to_home = game_map->calculate_distance(ship->position, closest_base);
             if (game.turn_number > constants::MAX_TURNS - (turns_to_home + 10)) {
                 ship_states[id] = ShipState::RETURNING;
@@ -117,7 +121,9 @@ int main(int argc, char* argv[]) {
 
             //Comportement de l'état retour
             if (ship_states[id] == ShipState::RETURNING) {
-                Position target_base = get_closest_dropoff(ship, me, game_map);
+                //Position target_base = get_closest_dropoff(ship, me, game_map);
+                //Lecture de la base la plus proche dans le cache
+                Position target_base = closest_base_cache[id];
 
                 if (ship->position == target_base) { // On vérifie si on est sur la base cible
                     // Reste sur place pour déposer
@@ -188,7 +194,9 @@ int main(int argc, char* argv[]) {
             if (ship_states[id] == ShipState::HARVESTING) {
 
                 // Décider si on crée un dropoff
-                Position closest_base = get_closest_dropoff(ship, me, game_map);
+                //Position closest_base = get_closest_dropoff(ship, me, game_map);
+                //Lecture de la base la plus proche dans le cache
+                Position closest_base = closest_base_cache[id];
                 int dist_to_base = game_map->calculate_distance(ship->position, closest_base);
 
                 // Si on a l'autorisation, qu'on est à plus de 15 cases d'une base, 
