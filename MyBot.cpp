@@ -78,7 +78,8 @@ int main(int argc, char* argv[]) {
         // * --Mise à jour des états de la flotte et règle des 10%-- *
         for (const auto& ship_iterator : me->ships) {
 
-            shared_ptr<Ship> ship = ship_iterator.second;
+            //shared_ptr<Ship> ship = ship_iterator.second;
+            const auto& ship = ship_iterator.second;
             EntityId id = ship->id;
 
             //Nouveaux vaisseaux ou vaisseaux vide prennent l'état HARVESTING
@@ -109,7 +110,8 @@ int main(int argc, char* argv[]) {
 
         // * --Comportement des vaisseaux qui rentrent et swapping (à gérer en priorité)-- *
         for (const auto& ship_iterator : me->ships) {
-            shared_ptr<Ship> ship = ship_iterator.second;
+           // shared_ptr<Ship> ship = ship_iterator.second;
+            const auto& ship = ship_iterator.second;
             EntityId id = ship->id;
 
             // Si le vaisseau est bloqué par la règle des 10% ou a déjà swappé => passer au suivant
@@ -178,7 +180,8 @@ int main(int argc, char* argv[]) {
 
         // * --Traiter ensuite les vaisseaux qui récoltent l'halite-- *
         for (const auto& ship_iterator : me->ships) {
-            shared_ptr<Ship> ship = ship_iterator.second;
+            // shared_ptr<Ship> ship = ship_iterator.second;
+            const auto& ship = ship_iterator.second;
             EntityId id = ship->id;
 
             // Si le vaisseau est bloqué par la règle des 10% ou a déjà swappé => passer au suivant
