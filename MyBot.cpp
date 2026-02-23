@@ -7,6 +7,9 @@
 #include <set>
 #include <map>
 
+#include <unordered_map>
+#include <unordered_set>
+
 using namespace std;
 using namespace hlt;
 
@@ -51,7 +54,7 @@ int main(int argc, char* argv[]) {
     Game game;
     game.ready("Mon pote");
 
-    map<EntityId, ShipState> ship_states; //état des vaisseaux (RECOLTE, RETOUR VAISSEAU MERE)
+    unordered_map<EntityId, ShipState> ship_states; //état des vaisseaux (RECOLTE, RETOUR VAISSEAU MERE)
 
     for (;;) {
         game.update_frame();
@@ -63,8 +66,8 @@ int main(int argc, char* argv[]) {
         // On remplit ça à chaque décision de mouvement
         set<Position> intended_positions;
 
-        map<EntityId, Command> ship_commands; // Stocke les ordres avant validation
-        set<EntityId> processed_ships;        // Retient les vaisseaux qui ont déjà une commande
+        unordered_map<EntityId, Command> ship_commands; // Stocke les ordres avant validation
+        unordered_set<EntityId> processed_ships;        // Retient les vaisseaux qui ont déjà une commande
 
         // On autorise la création d'un seul dropoff par tour si on est riche
         // On limite aussi le nombre total de dropoffs pour ne pas tapisser la carte
