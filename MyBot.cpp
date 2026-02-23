@@ -62,10 +62,6 @@ int main(int argc, char* argv[]) {
         shared_ptr<Player> me = game.me;
         unique_ptr<GameMap>& game_map = game.game_map;
 
-        // "Carte" des positions où nos vaisseaux vont aller ce tour-ci pour éviter les collisions
-        // On remplit ça à chaque décision de mouvement
-        //set<Position> intended_positions;
-
         // Grille 2D représentant une carte des positions où nos vaisseaux vont se rendre ce tour-ci
         // On initialise toutes les cases à "false" au début du tour
         vector<vector<bool>> intended_grid(game_map->width, vector<bool>(game_map->height, false));
@@ -107,7 +103,6 @@ int main(int argc, char* argv[]) {
             if (ship->halite < move_cost) {
                 ship_commands[id] = ship->stay_still();
                 processed_ships.insert(id);
-                // intended_positions.insert(ship->position); // vaisseau reste immobile => réserver la case
                 intended_grid[ship->position.x][ship->position.y] = true; // vaisseau reste immobile => réserver la case
             }
         }
@@ -126,7 +121,6 @@ int main(int argc, char* argv[]) {
 
                 if (ship->position == target_base) { // On vérifie si on est sur la base cible
                     // Reste sur place pour déposer
-                    //intended_positions.insert(ship->position);
                     intended_grid[ship->position.x][ship->position.y] = true;
                     ship_commands[id] = ship->stay_still();
                     processed_ships.insert(id);
@@ -140,7 +134,6 @@ int main(int argc, char* argv[]) {
                         Position target_pos = ship->position.directional_offset(dir);
 
                         // Si la case est déjà réservée par un autre vaisseau rentrant => on passe
-                        //if (intended_positions.count(target_pos) > 0) continue;
                         if (intended_grid[target_pos.x][target_pos.y]) continue;
 
                             // Swapping : y a-t-il un de nos vaisseaux sur cette case ?
@@ -157,9 +150,7 @@ int main(int argc, char* argv[]) {
                                     processed_ships.insert(id);
                                     processed_ships.insert(ally->id);
 
-                                    //intended_positions.insert(target_pos);
                                     intended_grid[target_pos.x][target_pos.y] = true;
-                                    //intended_positions.insert(ship->position); // L'allié prend notre ancienne case
                                     intended_grid[ship->position.x][ship->position.y] = true; // L'allié prend notre ancienne case
                                     moved = true;
                                     break;
@@ -169,7 +160,6 @@ int main(int argc, char* argv[]) {
                             else if (!game_map->at(target_pos)->is_occupied()) {
                                 ship_commands[id] = ship->move(dir);
                                 processed_ships.insert(id);
-                                //intended_positions.insert(target_pos);
                                 intended_grid[target_pos.x][target_pos.y] = true;
                                 moved = true;
                                 break;
@@ -180,7 +170,6 @@ int main(int argc, char* argv[]) {
                     if (!moved) {
                         ship_commands[id] = ship->stay_still();
                         processed_ships.insert(id);
-                        //intended_positions.insert(ship->position);
                         intended_grid[ship->position.x][ship->position.y] = true;
                     }
                 }
@@ -208,7 +197,6 @@ int main(int argc, char* argv[]) {
 
                     ship_commands[id] = ship->make_dropoff();
                     processed_ships.insert(id);
-                    //intended_positions.insert(ship->position); // Le dropoff devient un obstacle permanent !
                     intended_grid[ship->position.x][ship->position.y] = true; // Le dropoff devient un obstacle permanent
 
                     can_build_dropoff = false; // On retire l'autorisation pour les autres vaisseaux ce tour-ci
@@ -218,7 +206,6 @@ int main(int argc, char* argv[]) {
                 // Si la case actuelle contient encore beaucoup de ressources (100 ici),
                 // on reste dessus
                 if (game_map->at(ship)->halite > 100 && !ship->is_full()) {
-                    //intended_positions.insert(ship->position);
                     intended_grid[ship->position.x][ship->position.y] = true;
                     ship_commands[id] = ship->stay_still();
                     processed_ships.insert(id);
@@ -233,7 +220,6 @@ int main(int argc, char* argv[]) {
                         Position target_pos = ship->position.directional_offset(dir);
 
                         // Verification de si la case est déjà prévue par un autre vaisseau => éviter les collisions
-                        //if (intended_positions.count(target_pos)) continue;
                         if (intended_grid[target_pos.x][target_pos.y]) continue;
 
                         // Eviter les vaisseaux ennemis
@@ -249,7 +235,6 @@ int main(int argc, char* argv[]) {
                         }
                     }
 
-                    //intended_positions.insert(future_pos); // On réserve la case
                     intended_grid[future_pos.x][future_pos.y] = true; // On réserve la case
                     ship_commands[id] = ship->move(best_dir);
                     processed_ships.insert(id);
@@ -264,7 +249,6 @@ int main(int argc, char* argv[]) {
 
         //* --Gestion du vaisseau mère-- *
         // On vérifie si un vaisseau a prévu de venir sur le vaisseau mère à ce tour
-        //bool is_shipyard_safe = (intended_positions.count(me->shipyard->position) == 0);
         bool is_shipyard_safe = !intended_grid[me->shipyard->position.x][me->shipyard->position.y];
 
         if (game.turn_number <= 250 &&
