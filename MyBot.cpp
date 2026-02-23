@@ -102,8 +102,8 @@ int main(int argc, char* argv[]) {
                     for (Direction dir : options) {
                         Position target_pos = ship->position.directional_offset(dir);
 
-                        // Si la case n'est pas déjà réservée par un autre vaisseau rentrant
-                        if (intended_positions.count(target_pos) == 0) {
+                        // Si la case est déjà réservée par un autre vaisseau rentrant => on passe
+                        if (intended_positions.count(target_pos) > 0) continue;
 
                             // Swapping : y a-t-il un de nos vaisseaux sur cette case ?
                             if (game_map->at(target_pos)->is_occupied() &&
@@ -133,7 +133,6 @@ int main(int argc, char* argv[]) {
                                 moved = true;
                                 break;
                             }
-                        }
                     }
 
                     // Si on est complètement coincé, on reste sur place
